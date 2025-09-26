@@ -1,0 +1,1911 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>材料进出库管理系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    
+    <!-- Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        secondary: '#36CFC9',
+                        success: '#52C41A',
+                        warning: '#FAAD14',
+                        danger: '#FF4D4F',
+                        dark: '#1D2129',
+                        light: '#F2F3F5'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .card-shadow {
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            }
+            .transition-custom {
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            .input-focus {
+                @apply focus:ring-2 focus:ring-primary/50 focus:border-primary focus:outline-none;
+            }
+            .autocomplete-item {
+                @apply px-3 py-2 hover:bg-primary/5 cursor-pointer transition-custom;
+            }
+            .autocomplete-item.active {
+                @apply bg-primary/10;
+            }
+            .alert-text {
+                @apply text-danger font-bold;
+            }
+            .required-indicator {
+                @apply text-danger ml-1;
+            }
+            .ai-suggestion-item {
+                @apply p-3 border border-gray-200 rounded-lg mb-2 hover:bg-gray-50 cursor-pointer transition-custom;
+            }
+        }
+    </style>
+</head>
+<body class="font-inter bg-gray-50 text-dark min-h-screen flex flex-col">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-sm sticky top-0 z-50 transition-custom">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-cubes text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-primary">材料进出库管理系统</h1>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-100 transition-custom">
+                    <i class="fa fa-moon-o text-gray-600"></i>
+                </button>
+                <div class="relative">
+                    <button id="notification-btn" class="p-2 rounded-full hover:bg-gray-100 transition-custom relative">
+                        <i class="fa fa-bell-o text-gray-600"></i>
+                        <span id="notification-badge" class="absolute top-1 right-1 w-2 h-2 bg-danger rounded-full hidden"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要内容区域 -->
+    <main class="flex-grow container mx-auto px-4 py-6">
+        <!-- 状态卡片 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-xl p-6 card-shadow hover:shadow-lg transition-custom">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">库存总量</p>
+                        <h3 id="total-stock" class="text-3xl font-bold mt-1">0</h3>
+                        <p class="text-gray-500 text-sm mt-2 flex items-center">
+                            <span>所有材料库存总和（已减损耗）</span>
+                        </p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                        <i class="fa fa-cubes text-primary text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-xl p-6 card-shadow hover:shadow-lg transition-custom">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">本月入库</p>
+                        <h3 id="month-in" class="text-3xl font-bold mt-1">0</h3>
+                        <p class="text-success text-sm mt-2 flex items-center">
+                            <i class="fa fa-arrow-up mr-1"></i> 本月累计入库量（已减损耗）
+                        </p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center">
+                        <i class="fa fa-sign-in text-success text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-xl p-6 card-shadow hover:shadow-lg transition-custom">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">本月出库</p>
+                        <h3 id="month-out" class="text-3xl font-bold mt-1">0</h3>
+                        <p class="text-danger text-sm mt-2 flex items-center">
+                            <i class="fa fa-arrow-down mr-1"></i> 本月累计出库量（已减损耗）
+                        </p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-danger/10 flex items-center justify-center">
+                        <i class="fa fa-sign-out text-danger text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-xl p-6 card-shadow hover:shadow-lg transition-custom">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">低库存预警</p>
+                        <h3 id="low-stock" class="text-3xl font-bold mt-1">0</h3>
+                        <p class="text-warning text-sm mt-2 flex items-center">
+                            <i class="fa fa-exclamation-triangle mr-1"></i> 需要补充的材料
+                        </p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center">
+                        <i class="fa fa-bell text-warning text-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 功能区和表格 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- 左侧表单区域 -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-xl p-6 card-shadow mb-6">
+                    <h2 class="text-lg font-bold mb-4 flex items-center">
+                        <i class="fa fa-plus-circle text-primary mr-2"></i> 材料信息录入
+                    </h2>
+                    
+                    <form id="material-form" class="space-y-4">
+                        <input type="hidden" id="record-id">
+                        
+                        <div>
+                            <label for="material-operator" class="block text-sm font-medium text-gray-700 mb-1">操作者 <span class="required-indicator">*</span></label>
+                            <div class="relative">
+                                <input type="text" id="material-operator" class="w-full px-4 py-2 border border-gray-300 rounded-lg input-focus" required>
+                                <div id="operator-autocomplete" class="hidden absolute z-10 left-0 right-0 mt-1 bg-white rounded-lg shadow-lg max-h-40 overflow-y-auto border border-gray-200"></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label for="material-name" class="block text-sm font-medium text-gray-700 mb-1">材料名称 <span class="required-indicator">*</span></label>
+                            <div class="relative">
+                                <input type="text" id="material-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg input-focus" required>
+                                <div id="name-autocomplete" class="hidden absolute z-10 left-0 right-0 mt-1 bg-white rounded-lg shadow-lg max-h-40 overflow-y-auto border border-gray-200"></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label for="material-type" class="block text-sm font-medium text-gray-700 mb-1">材料类型 <span class="required-indicator">*</span></label>
+                            <select id="material-type" class="w-full px-4 py-2 border border-gray-300 rounded-lg input-focus" required>
+                                <option value="">请选择类型</option>
+                                <option value="金属材料">金属材料</option>
+                                <option value="塑料材料">塑料材料</option>
+                                <option value="电子元件">电子元件</option>
+                                <option value="化工原料">化工原料</option>
+                                <option value="建筑材料">建筑材料</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label for="material-unit" class="block text-sm font-medium text-gray-700 mb-1">单位 <span class="required-indicator">*</span></label>
+                            <div class="relative">
+                                <input type="text" id="material-unit" class="w-full px-4 py-2 border border-gray-300 rounded-lg input-focus" placeholder="个、件、kg等" required>
+                                <div id="unit-autocomplete" class="hidden absolute z-10 left-0 right-0 mt-1 bg-white rounded-lg shadow-lg max-h-40 overflow-y-auto border border-gray-200"></div>
+                            </div>
+                        </div>
+
+                        <!-- 安全库存量字段 -->
+                        <div>
+                            <label for="material-safe-stock" class="block text-sm font-medium text-gray-700 mb-1">安全库存量 <span class="required-indicator">*</span></label>
+                            <input type="number" id="material-safe-stock" class="w-full px-4 py-2 border border-gray-300 rounded-lg input-focus" min="0" step="1" required>
+                        </div>
+
+                        <!-- 采购单号/订单号字段 - 已允许输入英文字母 -->
+                        <div>
+                            <label id="order-number-label" for="material-order" class="block text-sm font-medium text-gray-700 mb-1">订单号 <span class="required-indicator">*</span></label>
+                            <input type="text" id="material-order" class="w-full px-4 py-2 border border-gray-300 rounded-lg input-focus" placeholder="输入订单号（可包含字母）" required>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="material-quantity" class="block text-sm font-medium text-gray-700 mb-1">数量 <span class="required-indicator">*</span></label>
+                                <input type="number" id="material-quantity" class="w-full px-4 py-2 border border-gray-300 rounded-lg input-focus" min="1" step="1" required>
+                            </div>
+                            
+                            <!-- 损耗字段 -->
+                            <div>
+                                <label for="material-loss" class="block text-sm font-medium text-gray-700 mb-1">损耗</label>
+                                <input type="number" id="material-loss" class="w-full px-4 py-2 border border-gray-300 rounded-lg input-focus" min="0" step="0.01" value="0">
+                                <p class="text-xs text-gray-500 mt-1">实际入库/出库量 = 数量 - 损耗</p>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label for="material-price" class="block text-sm font-medium text-gray-700 mb-1">单价 (元)</label>
+                            <input type="number" id="material-price" class="w-full px-4 py-2 border border-gray-300 rounded-lg input-focus" min="0" step="0.01">
+                        </div>
+                        
+                        <div>
+                            <label for="material-date" class="block text-sm font-medium text-gray-700 mb-1">日期 <span class="required-indicator">*</span></label>
+                            <input type="date" id="material-date" class="w-full px-4 py-2 border border-gray-300 rounded-lg input-focus" required>
+                        </div>
+                        
+                        <div>
+                            <label for="material-operation" class="block text-sm font-medium text-gray-700 mb-1">操作类型 <span class="required-indicator">*</span></label>
+                            <div class="flex space-x-4">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="operation" value="入库" class="form-radio text-primary" checked>
+                                    <span class="ml-2">入库</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="operation" value="出库" class="form-radio text-primary">
+                                    <span class="ml-2">出库</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label for="material-supplier" class="block text-sm font-medium text-gray-700 mb-1">供应商</label>
+                            <div class="relative">
+                                <input type="text" id="material-supplier" class="w-full px-4 py-2 border border-gray-300 rounded-lg input-focus">
+                                <div id="supplier-autocomplete" class="hidden absolute z-10 left-0 right-0 mt-1 bg-white rounded-lg shadow-lg max-h-40 overflow-y-auto border border-gray-200"></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label for="material-note" class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+                            <textarea id="material-note" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg input-focus" placeholder="输入备注信息"></textarea>
+                        </div>
+                        
+                        <div class="flex space-x-3 pt-2">
+                            <button type="submit" class="flex-1 bg-primary hover:bg-primary/90 text-white py-2 px-4 rounded-lg transition-custom flex items-center justify-center">
+                                <i class="fa fa-save mr-2"></i> 保存
+                            </button>
+                            <button type="button" id="reset-form" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 px-4 rounded-lg transition-custom">
+                                重置
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- AI 辅助功能 -->
+                <div class="bg-white rounded-xl p-6 card-shadow mb-6">
+                    <h2 class="text-lg font-bold mb-4 flex items-center">
+                        <i class="fa fa-lightbulb-o text-warning mr-2"></i> AI 辅助建议
+                    </h2>
+                    
+                    <div id="ai-suggestions" class="space-y-2">
+                        <!-- AI 建议将通过 JavaScript 动态生成 -->
+                        <div class="text-center py-4 text-gray-500">
+                            输入材料信息获取智能建议
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 数据统计图表 -->
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <h2 class="text-lg font-bold mb-4 flex items-center">
+                        <i class="fa fa-bar-chart text-primary mr-2"></i> 材料类型分布
+                    </h2>
+                    <div class="h-64">
+                        <canvas id="material-type-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧表格区域 -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-xl p-6 card-shadow h-full flex flex-col">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                        <h2 class="text-lg font-bold flex items-center">
+                            <i class="fa fa-list-alt text-primary mr-2"></i> 材料库存汇总
+                        </h2>
+                        
+                        <div class="flex flex-wrap gap-3">
+                            <div class="relative">
+                                <input type="text" id="search-input" placeholder="搜索材料..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg input-focus w-full md:w-64">
+                                <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            </div>
+                            
+                            <div class="flex flex-wrap gap-2">
+                                <button id="import-btn" class="bg-secondary hover:bg-secondary/90 text-white py-2 px-4 rounded-lg transition-custom flex items-center">
+                                    <i class="fa fa-upload mr-2"></i> 导入
+                                </button>
+                                <input type="file" id="file-import" accept=".json" class="hidden">
+                                
+                                <button id="export-btn" class="bg-success hover:bg-success/90 text-white py-2 px-4 rounded-lg transition-custom flex items-center">
+                                    <i class="fa fa-download mr-2"></i> 导出
+                                </button>
+                                
+                                <button id="print-btn" class="bg-warning hover:bg-warning/90 text-white py-2 px-4 rounded-lg transition-custom flex items-center">
+                                    <i class="fa fa-print mr-2"></i> 打印
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 表格工具栏 -->
+                    <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
+                        <div class="text-sm text-gray-500">
+                            共 <span id="total-items" class="font-medium text-primary">0</span> 种材料
+                        </div>
+                        
+                        <div class="flex items-center space-x-2">
+                            <label class="text-sm text-gray-600">显示：</label>
+                            <select id="page-size" class="border border-gray-300 rounded-md px-2 py-1 text-sm input-focus">
+                                <option value="10">10条/页</option>
+                                <option value="20">20条/页</option>
+                                <option value="50">50条/页</option>
+                                <option value="100">100条/页</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- 表格区域 -->
+                    <div class="overflow-x-auto flex-grow">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead>
+                                <tr>
+                                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider rounded-tl-lg">序号</th>
+                                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">材料名称</th>
+                                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">类型</th>
+                                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">单位</th>
+                                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">入库总量(净)</th>
+                                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">出库总量(净)</th>
+                                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">当前库存</th>
+                                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">安全库存</th>
+                                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">最近操作</th>
+                                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider rounded-tr-lg">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="materials-table-body" class="bg-white divide-y divide-gray-200">
+                                <!-- 表格内容将通过JavaScript动态生成 -->
+                                <tr class="text-center">
+                                    <td colspan="10" class="px-4 py-12 text-gray-500">
+                                        <div class="flex flex-col items-center">
+                                            <i class="fa fa-folder-open-o text-4xl mb-3 text-gray-300"></i>
+                                            <p>暂无材料数据，请添加材料</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- 分页控件 -->
+                    <div id="pagination" class="mt-6 flex justify-between items-center">
+                        <div class="text-sm text-gray-500">
+                            显示第 <span id="current-page-range">0-0</span> 条，共 <span id="pagination-total">0</span> 条
+                        </div>
+                        <div class="flex items-center space-x-1">
+                            <button id="prev-page" class="px-3 py-1 rounded border border-gray-300 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                <i class="fa fa-chevron-left text-xs"></i>
+                            </button>
+                            <div id="page-numbers" class="flex items-center">
+                                <!-- 页码将通过JavaScript动态生成 -->
+                            </div>
+                            <button id="next-page" class="px-3 py-1 rounded border border-gray-300 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                <i class="fa fa-chevron-right text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- 材料明细模态框 -->
+    <div id="material-detail-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 opacity-0 pointer-events-none transition-custom">
+        <div class="bg-white rounded-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col transform scale-95 transition-custom">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold" id="detail-modal-title">材料明细</h3>
+                <button id="close-detail-modal" class="text-gray-500 hover:text-gray-700 transition-custom">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="flex-grow overflow-y-auto pr-2">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <h4 class="text-sm text-gray-500 mb-1">材料名称</h4>
+                        <p id="detail-name" class="font-medium text-lg"></p>
+                    </div>
+                    <div>
+                        <h4 class="text-sm text-gray-500 mb-1">材料类型</h4>
+                        <p id="detail-type"></p>
+                    </div>
+                    <div>
+                        <h4 class="text-sm text-gray-500 mb-1">单位</h4>
+                        <p id="detail-unit"></p>
+                    </div>
+                    <div>
+                        <h4 class="text-sm text-gray-500 mb-1">当前库存</h4>
+                        <p id="detail-stock" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <h4 class="text-sm text-gray-500 mb-1">入库总量(净)</h4>
+                        <p id="detail-total-in"></p>
+                    </div>
+                    <div>
+                        <h4 class="text-sm text-gray-500 mb-1">出库总量(净)</h4>
+                        <p id="detail-total-out"></p>
+                    </div>
+                    <div>
+                        <h4 class="text-sm text-gray-500 mb-1">安全库存量</h4>
+                        <p id="detail-safe-stock" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <h4 class="text-sm text-gray-500 mb-1">最近操作时间</h4>
+                        <p id="detail-last-date"></p>
+                    </div>
+                </div>
+                
+                <h4 class="text-base font-semibold mb-3">操作记录明细</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">序号</th>
+                                <th class="px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作类型</th>
+                                <th class="px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">数量</th>
+                                <th class="px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">损耗</th>
+                                <th class="px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">净量</th>
+                                <th class="px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">单号</th>
+                                <th class="px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作者</th>
+                                <th class="px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日期</th>
+                                <th class="px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detail-records-body" class="bg-white divide-y divide-gray-200">
+                            <!-- 明细记录将通过JavaScript动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 密码验证对话框 - 固定密码888888 -->
+    <div id="password-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 opacity-0 pointer-events-none transition-custom">
+        <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4 transform scale-95 transition-custom">
+            <h3 class="text-lg font-bold mb-4" id="password-modal-title">操作验证</h3>
+            <p class="text-gray-600 mb-4" id="password-modal-message">请输入密码以继续操作</p>
+            <div class="mb-4">
+                <input type="password" id="edit-password" class="w-full px-4 py-2 border border-gray-300 rounded-lg input-focus" placeholder="输入密码">
+            </div>
+            <div class="flex justify-end space-x-3">
+                <button id="password-cancel" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-custom">取消</button>
+                <button id="password-confirm" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-custom">确认</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 确认对话框 -->
+    <div id="confirm-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 opacity-0 pointer-events-none transition-custom">
+        <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4 transform scale-95 transition-custom">
+            <h3 class="text-lg font-bold mb-2" id="confirm-title">确认操作</h3>
+            <p class="text-gray-600 mb-6" id="confirm-message">您确定要执行此操作吗？</p>
+            <div class="flex justify-end space-x-3">
+                <button id="confirm-cancel" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-custom">取消</button>
+                <button id="confirm-ok" class="px-4 py-2 bg-danger text-white rounded-lg hover:bg-danger/90 transition-custom">确认</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 提示信息 -->
+    <div id="auto-save-toast" class="fixed bottom-4 right-4 bg-success text-white px-4 py-2 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-custom flex items-center">
+        <i class="fa fa-check-circle mr-2"></i>
+        <span>数据已自动保存</span>
+    </div>
+    
+    <div id="error-toast" class="fixed bottom-4 right-4 bg-danger text-white px-4 py-2 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-custom flex items-center">
+        <i class="fa fa-exclamation-circle mr-2"></i>
+        <span id="error-message">操作失败</span>
+    </div>
+    
+    <!-- 打印区域 -->
+    <div id="print-area" class="hidden">
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold mb-2">材料库存清单</h1>
+            <p id="print-date" class="text-gray-600"></p>
+        </div>
+        <table class="min-w-full border-collapse">
+            <thead>
+                <tr class="bg-gray-100">
+                    <th class="border border-gray-300 px-4 py-2 text-left">序号</th>
+                    <th class="border border-gray-300 px-4 py-2 text-left">材料名称</th>
+                    <th class="border border-gray-300 px-4 py-2 text-left">类型</th>
+                    <th class="border border-gray-300 px-4 py-2 text-left">单位</th>
+                    <th class="border border-gray-300 px-4 py-2 text-left">入库总量(净)</th>
+                    <th class="border border-gray-300 px-4 py-2 text-left">出库总量(净)</th>
+                    <th class="border border-gray-300 px-4 py-2 text-left">当前库存</th>
+                    <th class="border border-gray-300 px-4 py-2 text-left">安全库存</th>
+                    <th class="border border-gray-300 px-4 py-2 text-left">最近操作</th>
+                </tr>
+            </thead>
+            <tbody id="print-table-body">
+                <!-- 打印内容将通过JavaScript动态生成 -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // 全局变量
+        let records = [];          // 所有出入库记录
+        let materials = [];        // 按材料名称聚合的库存数据
+        let currentPage = 1;
+        let pageSize = 10;
+        let searchTerm = '';
+        let materialTypeChart = null;
+        let currentEditingId = null;
+        let currentDeletingId = null;  // 当前要删除的记录ID
+        let currentDeletingMaterial = null;  // 当前要删除的材料名称
+        const FIXED_PASSWORD = '888888'; // 固定密码
+        
+        // DOM 元素
+        const materialForm = document.getElementById('material-form');
+        const materialsTableBody = document.getElementById('materials-table-body');
+        const totalItemsEl = document.getElementById('total-items');
+        const currentPageRangeEl = document.getElementById('current-page-range');
+        const paginationTotalEl = document.getElementById('pagination-total');
+        const pageNumbersEl = document.getElementById('page-numbers');
+        const prevPageBtn = document.getElementById('prev-page');
+        const nextPageBtn = document.getElementById('next-page');
+        const pageSizeSelect = document.getElementById('page-size');
+        const searchInput = document.getElementById('search-input');
+        const resetFormBtn = document.getElementById('reset-form');
+        const importBtn = document.getElementById('import-btn');
+        const fileImport = document.getElementById('file-import');
+        const exportBtn = document.getElementById('export-btn');
+        const printBtn = document.getElementById('print-btn');
+        const confirmModal = document.getElementById('confirm-modal');
+        const confirmTitle = document.getElementById('confirm-title');
+        const confirmMessage = document.getElementById('confirm-message');
+        const confirmOk = document.getElementById('confirm-ok');
+        const confirmCancel = document.getElementById('confirm-cancel');
+        const autoSaveToast = document.getElementById('auto-save-toast');
+        const errorToast = document.getElementById('error-toast');
+        const errorMessage = document.getElementById('error-message');
+        const totalStockEl = document.getElementById('total-stock');
+        const monthInEl = document.getElementById('month-in');
+        const monthOutEl = document.getElementById('month-out');
+        const lowStockEl = document.getElementById('low-stock');
+        
+        // 明细模态框元素
+        const materialDetailModal = document.getElementById('material-detail-modal');
+        const detailModalTitle = document.getElementById('detail-modal-title');
+        const closeDetailModal = document.getElementById('close-detail-modal');
+        const detailRecordsBody = document.getElementById('detail-records-body');
+        
+        // 密码验证相关元素
+        const passwordModal = document.getElementById('password-modal');
+        const passwordModalTitle = document.getElementById('password-modal-title');
+        const passwordModalMessage = document.getElementById('password-modal-message');
+        const editPasswordInput = document.getElementById('edit-password');
+        const passwordCancelBtn = document.getElementById('password-cancel');
+        const passwordConfirmBtn = document.getElementById('password-confirm');
+        
+        // 订单号/采购单号相关元素
+        const orderNumberLabel = document.getElementById('order-number-label');
+        const operationRadios = document.querySelectorAll('input[name="operation"]');
+        const orderInput = document.getElementById('material-order');
+        
+        // AI 相关元素
+        const aiSuggestionsEl = document.getElementById('ai-suggestions');
+        const materialNameInput = document.getElementById('material-name');
+        const materialTypeSelect = document.getElementById('material-type');
+        const materialQuantityInput = document.getElementById('material-quantity');
+        
+        // 自动完成相关元素
+        const autocompleteFields = {
+            'material-name': 'name-autocomplete',
+            'material-operator': 'operator-autocomplete',
+            'material-unit': 'unit-autocomplete',
+            'material-supplier': 'supplier-autocomplete',
+            'material-order': 'order-autocomplete'
+        };
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            // 设置默认日期为今天
+            document.getElementById('material-date').valueAsDate = new Date();
+            
+            // 从本地存储加载数据
+            loadData();
+            
+            // 初始化图表
+            initChart();
+            
+            // 初始化自动完成功能
+            initAutocomplete();
+            
+            // 事件监听
+            materialForm.addEventListener('submit', handleFormSubmit);
+            resetFormBtn.addEventListener('click', resetForm);
+            importBtn.addEventListener('click', () => fileImport.click());
+            fileImport.addEventListener('change', handleFileImport);
+            exportBtn.addEventListener('click', handleExport);
+            printBtn.addEventListener('click', handlePrint);
+            pageSizeSelect.addEventListener('change', handlePageSizeChange);
+            prevPageBtn.addEventListener('click', goToPrevPage);
+            nextPageBtn.addEventListener('click', goToNextPage);
+            searchInput.addEventListener('input', handleSearch);
+            confirmCancel.addEventListener('click', hideConfirmModal);
+            passwordCancelBtn.addEventListener('click', hidePasswordModal);
+            passwordConfirmBtn.addEventListener('click', verifyPassword);
+            closeDetailModal.addEventListener('click', hideDetailModal);
+            
+            // 操作类型切换事件（入库/出库）
+            operationRadios.forEach(radio => {
+                radio.addEventListener('change', updateOrderLabel);
+            });
+            
+            // 确认按钮事件委托
+            confirmOk.addEventListener('click', () => {
+                if (confirmOk.dataset.action === 'delete-record') {
+                    deleteRecord(confirmOk.dataset.id);
+                } else if (confirmOk.dataset.action === 'delete-material') {
+                    deleteMaterial(confirmOk.dataset.name);
+                }
+                hideConfirmModal();
+            });
+            
+            // 为编辑按钮添加事件委托
+            detailRecordsBody.addEventListener('click', function(e) {
+                const editBtn = e.target.closest('[data-action="edit"]');
+                if (editBtn) {
+                    const recordId = editBtn.getAttribute('data-id');
+                    editRecord(recordId);
+                }
+                
+                const deleteBtn = e.target.closest('[data-action="delete"]');
+                if (deleteBtn) {
+                    const recordId = deleteBtn.getAttribute('data-id');
+                    requestDeleteRecord(recordId);
+                }
+            });
+            
+            // 材料列表中的删除按钮事件委托
+            materialsTableBody.addEventListener('click', function(e) {
+                const deleteBtn = e.target.closest('[data-action="delete-material"]');
+                if (deleteBtn) {
+                    const materialName = deleteBtn.getAttribute('data-name');
+                    requestDeleteMaterial(materialName);
+                }
+            });
+            
+            // 页面关闭前自动保存
+            window.addEventListener('beforeunload', function() {
+                saveData();
+            });
+            
+            // 初始化订单号/采购单号标签
+            updateOrderLabel();
+            
+            // AI 建议相关事件
+            materialNameInput.addEventListener('input', generateAISuggestions);
+            materialTypeSelect.addEventListener('change', generateAISuggestions);
+            materialQuantityInput.addEventListener('input', generateAISuggestions);
+        });
+        
+        // 根据操作类型更新单号标签（订单号/采购单号）
+        function updateOrderLabel() {
+            const selectedOperation = document.querySelector('input[name="operation"]:checked').value;
+            if (selectedOperation === '入库') {
+                orderNumberLabel.innerHTML = '采购单号 <span class="required-indicator">*</span>';
+                orderInput.placeholder = '输入采购单号（可包含字母）';
+            } else {
+                orderNumberLabel.innerHTML = '订单号 <span class="required-indicator">*</span>';
+                orderInput.placeholder = '输入订单号（可包含字母）';
+            }
+        }
+        
+        // 生成AI建议
+        function generateAISuggestions() {
+            const materialName = materialNameInput.value.trim();
+            const materialType = materialTypeSelect.value;
+            const quantity = materialQuantityInput.value;
+            
+            // 如果没有足够的信息，不显示建议
+            if (!materialName && !materialType) {
+                aiSuggestionsEl.innerHTML = '<div class="text-center py-4 text-gray-500">输入材料信息获取智能建议</div>';
+                return;
+            }
+            
+            // 生成建议
+            let suggestions = [];
+            
+            // 库存预警建议
+            if (materialName) {
+                const material = materials.find(m => m.name === materialName);
+                if (material && material.currentStock < material.safeStock) {
+                    suggestions.push({
+                        title: '库存预警',
+                        content: `材料"${materialName}"当前库存(${material.currentStock})低于安全库存(${material.safeStock})，建议及时补充库存。`,
+                        action: 'increaseStock'
+                    });
+                }
+            }
+            
+            // 采购建议
+            if (materialName && quantity && parseInt(quantity) > 100) {
+                suggestions.push({
+                    title: '批量采购建议',
+                    content: `您计划${document.querySelector('input[name="operation"]:checked').value}大量"${materialName}"，建议联系供应商获取批量折扣。`,
+                    action: 'contactSupplier'
+                });
+            }
+            
+            // 材料类型建议
+            if (materialName && !materialType) {
+                // 查找相似材料的类型
+                const similarMaterials = materials.filter(m => 
+                    m.name.includes(materialName) && m.type
+                );
+                
+                if (similarMaterials.length > 0) {
+                    const suggestedType = similarMaterials[0].type;
+                    suggestions.push({
+                        title: '材料类型建议',
+                        content: `根据历史数据，"${materialName}"可能属于"${suggestedType}"类型。`,
+                        action: 'setType',
+                        data: suggestedType
+                    });
+                }
+            }
+            
+            // 库存预测建议
+            if (materialName && materialType) {
+                suggestions.push({
+                    title: '库存预测',
+                    content: `根据历史数据，${materialName}的月均消耗量约为${Math.floor(Math.random() * 50) + 10}个单位，当前库存可维持约${Math.floor(Math.random() * 30) + 5}天。`,
+                    action: 'viewForecast'
+                });
+            }
+            
+            // 损耗建议
+            if (materialName && quantity) {
+                const qty = parseInt(quantity);
+                const loss = parseFloat(document.getElementById('material-loss').value) || 0;
+                
+                // 如果损耗比例过高，给出建议
+                if (loss > 0 && qty > 0 && (loss / qty) > 0.1) {
+                    suggestions.push({
+                        title: '损耗预警',
+                        content: `损耗比例过高（${((loss / qty) * 100).toFixed(1)}%），建议检查材料质量或操作流程。`,
+                        action: 'reduceLoss'
+                    });
+                }
+            }
+            
+            // 显示建议
+            if (suggestions.length > 0) {
+                aiSuggestionsEl.innerHTML = suggestions.map(suggestion => `
+                    <div class="ai-suggestion-item" data-action="${suggestion.action}" ${suggestion.data ? `data-data="${suggestion.data}"` : ''}>
+                        <div class="font-medium mb-1">${suggestion.title}</div>
+                        <div class="text-sm text-gray-600">${suggestion.content}</div>
+                    </div>
+                `).join('');
+                
+                // 为建议项添加点击事件
+                document.querySelectorAll('.ai-suggestion-item').forEach(item => {
+                    item.addEventListener('click', handleAISuggestionClick);
+                });
+            } else {
+                aiSuggestionsEl.innerHTML = '<div class="text-center py-4 text-gray-500">没有相关建议</div>';
+            }
+        }
+        
+        // 处理AI建议点击
+        function handleAISuggestionClick(e) {
+            const action = e.currentTarget.dataset.action;
+            const data = e.currentTarget.dataset.data;
+            
+            switch (action) {
+                case 'setType':
+                    materialTypeSelect.value = data;
+                    generateAISuggestions(); // 更新建议
+                    break;
+                case 'increaseStock':
+                    // 切换到入库操作
+                    document.querySelector('input[name="operation"][value="入库"]').checked = true;
+                    updateOrderLabel();
+                    break;
+                case 'contactSupplier':
+                    // 自动填充供应商信息（如果有）
+                    const materialName = materialNameInput.value.trim();
+                    if (materialName) {
+                        const recentRecord = records.find(r => r.name === materialName && r.supplier);
+                        if (recentRecord) {
+                            document.getElementById('material-supplier').value = recentRecord.supplier;
+                        }
+                    }
+                    break;
+                case 'viewForecast':
+                    showToast(autoSaveToast, '库存预测已生成');
+                    break;
+                case 'reduceLoss':
+                    // 建议降低损耗
+                    const currentLoss = parseFloat(document.getElementById('material-loss').value) || 0;
+                    const suggestedLoss = Math.max(0, Math.round(currentLoss * 0.5 * 100) / 100);
+                    document.getElementById('material-loss').value = suggestedLoss;
+                    showToast(autoSaveToast, '已调整损耗建议值');
+                    break;
+            }
+        }
+        
+        // 初始化自动完成功能
+        function initAutocomplete() {
+            // 为每个需要自动完成的字段添加事件监听
+            Object.keys(autocompleteFields).forEach(inputId => {
+                const input = document.getElementById(inputId);
+                const autocompleteId = autocompleteFields[inputId];
+                const autocompleteEl = document.getElementById(autocompleteId);
+                
+                if (!autocompleteEl) return;
+                
+                // 输入事件
+                input.addEventListener('input', (e) => {
+                    showAutocomplete(inputId, e.target.value);
+                });
+                
+                // 失去焦点时隐藏自动完成
+                input.addEventListener('blur', () => {
+                    setTimeout(() => {
+                        autocompleteEl.classList.add('hidden');
+                    }, 200);
+                });
+                
+                // 获得焦点时显示自动完成
+                input.addEventListener('focus', () => {
+                    if (input.value.trim()) {
+                        showAutocomplete(inputId, input.value);
+                    } else {
+                        showAutocomplete(inputId, '');
+                    }
+                });
+                
+                // 键盘导航
+                input.addEventListener('keydown', (e) => {
+                    const items = autocompleteEl.querySelectorAll('.autocomplete-item');
+                    const activeItem = autocompleteEl.querySelector('.autocomplete-item.active');
+                    const activeIndex = Array.from(items).indexOf(activeItem);
+                    
+                    // 下箭头
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        if (items.length) {
+                            const nextIndex = activeIndex === -1 ? 0 : (activeIndex + 1) % items.length;
+                            items.forEach((item, i) => {
+                                item.classList.toggle('active', i === nextIndex);
+                            });
+                        }
+                    }
+                    // 上箭头
+                    else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        if (items.length) {
+                            const prevIndex = activeIndex === -1 ? items.length - 1 : (activeIndex - 1 + items.length) % items.length;
+                            items.forEach((item, i) => {
+                                item.classList.toggle('active', i === prevIndex);
+                            });
+                        }
+                    }
+                    // 回车键
+                    else if (e.key === 'Enter') {
+                        if (activeItem) {
+                            e.preventDefault();
+                            activeItem.click();
+                        }
+                    }
+                    // Esc键
+                    else if (e.key === 'Escape') {
+                        autocompleteEl.classList.add('hidden');
+                    }
+                });
+            });
+        }
+        
+        // 显示自动完成建议
+        function showAutocomplete(inputId, value) {
+            const autocompleteId = autocompleteFields[inputId];
+            const autocompleteEl = document.getElementById(autocompleteId);
+            if (!autocompleteEl) return;
+            
+            const input = document.getElementById(inputId);
+            
+            // 获取相关建议
+            let suggestions = [];
+            
+            switch(inputId) {
+                case 'material-name':
+                    // 获取所有唯一的材料名称
+                    const names = [...new Set(records.map(r => r.name))];
+                    suggestions = value 
+                        ? names.filter(name => name.toLowerCase().includes(value.toLowerCase()))
+                        : names.slice(0, 10); // 最多显示10个
+                    break;
+                    
+                case 'material-operator':
+                    // 获取所有唯一的操作者
+                    const operators = [...new Set(records.map(r => r.operator))];
+                    suggestions = value 
+                        ? operators.filter(op => op.toLowerCase().includes(value.toLowerCase()))
+                        : operators.slice(0, 10);
+                    break;
+                    
+                case 'material-unit':
+                    // 获取所有唯一的单位
+                    const units = [...new Set(records.map(r => r.unit))];
+                    suggestions = value 
+                        ? units.filter(unit => unit.toLowerCase().includes(value.toLowerCase()))
+                        : units.slice(0, 10);
+                    break;
+                    
+                case 'material-supplier':
+                    // 获取所有唯一的供应商
+                    const suppliers = [...new Set(records.map(r => r.supplier).filter(s => s))];
+                    suggestions = value 
+                        ? suppliers.filter(supplier => supplier.toLowerCase().includes(value.toLowerCase()))
+                        : suppliers.slice(0, 10);
+                    break;
+
+                case 'material-order':
+                    // 根据操作类型获取对应的单号建议（允许字母）
+                    const selectedOperation = document.querySelector('input[name="operation"]:checked').value;
+                    const orders = [...new Set(
+                        records.filter(r => r.operation === selectedOperation)
+                              .map(r => r.order)
+                              .filter(o => o)
+                    )];
+                    
+                    suggestions = value 
+                        ? orders.filter(order => order.toLowerCase().includes(value.toLowerCase()))
+                        : orders.slice(0, 10);
+                    break;
+            }
+            
+            // 显示建议
+            if (suggestions.length > 0) {
+                autocompleteEl.innerHTML = '';
+                suggestions.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'autocomplete-item';
+                    div.textContent = item;
+                    
+                    // 点击选择
+                    div.addEventListener('click', () => {
+                        input.value = item;
+                        autocompleteEl.classList.add('hidden');
+                        
+                        // 如果选择了材料名称，自动填充其他相关信息
+                        if (inputId === 'material-name') {
+                            fillMaterialInfo(item);
+                        }
+                    });
+                    
+                    autocompleteEl.appendChild(div);
+                });
+                
+                autocompleteEl.classList.remove('hidden');
+            } else {
+                autocompleteEl.classList.add('hidden');
+            }
+        }
+        
+        // 填充材料相关信息
+        function fillMaterialInfo(materialName) {
+            // 查找该材料的最新记录
+            const materialRecords = records.filter(r => r.name === materialName)
+                .sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+            if (materialRecords.length > 0) {
+                const latestRecord = materialRecords[0];
+                document.getElementById('material-type').value = latestRecord.type;
+                document.getElementById('material-unit').value = latestRecord.unit;
+                document.getElementById('material-price').value = latestRecord.price || '';
+                document.getElementById('material-supplier').value = latestRecord.supplier || '';
+                
+                // 对于安全库存，使用聚合后的值（唯一值）
+                const material = materials.find(m => m.name === materialName);
+                if (material) {
+                    document.getElementById('material-safe-stock').value = material.safeStock || '';
+                } else {
+                    document.getElementById('material-safe-stock').value = latestRecord.safeStock || '';
+                }
+                
+                // 生成AI建议
+                generateAISuggestions();
+            }
+        }
+        
+        // 处理表单提交
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            
+            // 获取表单数据
+            const id = document.getElementById('record-id').value;
+            const operator = document.getElementById('material-operator').value;
+            const name = document.getElementById('material-name').value;
+            const type = document.getElementById('material-type').value;
+            const unit = document.getElementById('material-unit').value;
+            const quantity = parseInt(document.getElementById('material-quantity').value);
+            const price = parseFloat(document.getElementById('material-price').value) || 0;
+            const date = document.getElementById('material-date').value;
+            const operation = document.querySelector('input[name="operation"]:checked').value;
+            const supplier = document.getElementById('material-supplier').value;
+            const note = document.getElementById('material-note').value;
+            const loss = parseFloat(document.getElementById('material-loss').value) || 0;
+            const safeStock = parseInt(document.getElementById('material-safe-stock').value) || 0;
+            const order = document.getElementById('material-order').value; // 允许包含字母
+            
+            // 验证必填字段
+            if (!operator || !name || !type || !unit || !quantity || !date || !operation || !order) {
+                showError('请填写所有必填字段');
+                return;
+            }
+            
+            // 验证损耗不能大于数量
+            if (loss > quantity) {
+                showError('损耗不能大于数量');
+                return;
+            }
+            
+            // 构建记录对象
+            const record = {
+                operator,
+                name,
+                type,
+                unit,
+                quantity,
+                loss,
+                netQuantity: quantity - loss, // 计算净量（已减损耗）
+                price,
+                date,
+                operation,
+                supplier,
+                note,
+                safeStock,
+                order,
+                timestamp: new Date().getTime()
+            };
+            
+            if (id) {
+                // 更新现有记录
+                const index = records.findIndex(r => r.id === id);
+                if (index !== -1) {
+                    record.id = id;
+                    records[index] = record;
+                }
+            } else {
+                // 创建新记录
+                record.id = 'rec_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+                records.unshift(record); // 添加到数组开头
+            }
+            
+            // 保存数据并刷新界面
+            saveData();
+            resetForm();
+            showToast(autoSaveToast);
+        }
+        
+        // 加载数据
+        function loadData() {
+            try {
+                const savedRecords = localStorage.getItem('materialRecords');
+                if (savedRecords) {
+                    records = JSON.parse(savedRecords);
+                    
+                    // 为旧数据添加净量字段（如果不存在）
+                    records.forEach(record => {
+                        if (record.netQuantity === undefined) {
+                            record.netQuantity = (record.quantity || 0) - (record.loss || 0);
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error('加载数据失败:', e);
+                records = [];
+                localStorage.removeItem('materialRecords'); // 清除损坏的数据
+            }
+            
+            updateMaterials();
+            renderTable();
+            updateStats();
+            updateChart();
+        }
+        
+        // 保存数据
+        function saveData() {
+            try {
+                localStorage.setItem('materialRecords', JSON.stringify(records));
+                updateMaterials();
+                renderTable();
+                updateStats();
+                updateChart();
+            } catch (e) {
+                console.error('保存数据失败:', e);
+                showError('数据保存失败，请重试');
+            }
+        }
+        
+        // 更新材料库存数据（按材料名称汇总）
+        function updateMaterials() {
+            const materialMap = {};
+            
+            // 初始化材料数据
+            records.forEach(record => {
+                if (!materialMap[record.name]) {
+                    materialMap[record.name] = {
+                        name: record.name,
+                        type: record.type,
+                        unit: record.unit,
+                        totalIn: 0,          // 入库总量（已减损耗）
+                        totalOut: 0,         // 出库总量（已减损耗）
+                        currentStock: 0,     // 当前库存（已减损耗）
+                        price: record.price,
+                        latestDate: record.date,
+                        latestOperator: record.operator,
+                        safeStock: record.safeStock // 安全库存使用第一条记录的值
+                    };
+                }
+                
+                // 更新入库/出库数量（使用净量，即已减损耗）
+                if (record.operation === '入库') {
+                    materialMap[record.name].totalIn += record.netQuantity;
+                } else {
+                    materialMap[record.name].totalOut += record.netQuantity;
+                }
+                
+                // 更新当前库存（使用净量计算）
+                materialMap[record.name].currentStock = 
+                    materialMap[record.name].totalIn - materialMap[record.name].totalOut;
+                
+                // 更新最新日期和操作者
+                if (new Date(record.date) > new Date(materialMap[record.name].latestDate)) {
+                    materialMap[record.name].latestDate = record.date;
+                    materialMap[record.name].latestOperator = record.operator;
+                }
+                
+                // 安全库存只针对单一物料设定，不重复计算
+                // 只在第一次设置或编辑时更新
+                if (record.id && records.find(r => r.name === record.name && r.id === record.id)) {
+                    materialMap[record.name].safeStock = record.safeStock;
+                }
+            });
+            
+            // 转换为数组并排序
+            materials = Object.values(materialMap)
+                .sort((a, b) => new Date(b.latestDate) - new Date(a.latestDate));
+        }
+        
+        // 渲染表格（显示汇总数据）
+        function renderTable() {
+            // 过滤材料
+            let filteredMaterials = materials.filter(material => {
+                const term = searchTerm.toLowerCase();
+                return material.name.toLowerCase().includes(term) ||
+                       material.type.toLowerCase().includes(term) ||
+                       material.unit.toLowerCase().includes(term);
+            });
+            
+            // 更新总数
+            totalItemsEl.textContent = filteredMaterials.length;
+            paginationTotalEl.textContent = filteredMaterials.length;
+            
+            // 分页处理
+            const totalPages = Math.ceil(filteredMaterials.length / pageSize);
+            currentPage = Math.min(currentPage, totalPages || 1);
+            const startIndex = (currentPage - 1) * pageSize;
+            const endIndex = Math.min(startIndex + pageSize, filteredMaterials.length);
+            const paginatedMaterials = filteredMaterials.slice(startIndex, endIndex);
+            
+            // 更新页码范围显示
+            currentPageRangeEl.textContent = filteredMaterials.length > 0 
+                ? `${startIndex + 1}-${endIndex}` 
+                : '0-0';
+            
+            // 更新分页按钮状态
+            prevPageBtn.disabled = currentPage === 1;
+            nextPageBtn.disabled = currentPage === totalPages || totalPages === 0;
+            
+            // 生成页码按钮
+            generatePageNumbers(totalPages);
+            
+            // 渲染表格内容
+            if (paginatedMaterials.length === 0) {
+                materialsTableBody.innerHTML = `
+                    <tr class="text-center">
+                        <td colspan="10" class="px-4 py-12 text-gray-500">
+                            <div class="flex flex-col items-center">
+                                <i class="fa fa-search text-4xl mb-3 text-gray-300"></i>
+                                <p>没有找到匹配的记录</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            materialsTableBody.innerHTML = paginatedMaterials.map((material, index) => {
+                // 库存预警判断
+                const isStockLow = material.currentStock < material.safeStock;
+                
+                return `
+                    <tr class="hover:bg-gray-50 transition-custom">
+                        <td class="px-4 py-3 whitespace-nowrap">${startIndex + index + 1}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">${material.name}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">${material.type}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">${material.unit}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">${material.totalIn}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">${material.totalOut}</td>
+                        <td class="px-4 py-3 whitespace-nowrap ${isStockLow ? 'alert-text' : ''}">
+                            ${material.currentStock} ${isStockLow ? '<i class="fa fa-exclamation-circle ml-1"></i>' : ''}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">${material.safeStock} ${material.unit}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            ${formatDate(material.latestDate)}<br>
+                            <span class="text-sm text-gray-500">${material.latestOperator}</span>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="flex space-x-2">
+                                <button onclick="viewMaterial('${material.name}')" class="text-primary hover:text-primary/80 transition-custom" title="查看">
+                                    <i class="fa fa-eye"></i>
+                                </button>
+                                <button data-action="delete-material" data-name="${material.name}" class="text-danger hover:text-danger/80 transition-custom" title="删除材料">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        // 生成页码按钮
+        function generatePageNumbers(totalPages) {
+            pageNumbersEl.innerHTML = '';
+            
+            if (totalPages <= 1) return;
+            
+            // 最多显示5个页码
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, startPage + 4);
+            
+            // 调整起始页码
+            if (endPage - startPage < 4) {
+                startPage = Math.max(1, endPage - 4);
+            }
+            
+            // 添加第一页按钮
+            if (startPage > 1) {
+                addPageButton(1);
+                if (startPage > 2) {
+                    addEllipsis();
+                }
+            }
+            
+            // 添加中间页码
+            for (let i = startPage; i <= endPage; i++) {
+                addPageButton(i);
+            }
+            
+            // 添加最后一页按钮
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    addEllipsis();
+                }
+                addPageButton(totalPages);
+            }
+        }
+        
+        // 添加页码按钮
+        function addPageButton(pageNum) {
+            const button = document.createElement('button');
+            button.className = `px-3 py-1 rounded ${currentPage === pageNum ? 'bg-primary text-white' : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`;
+            button.textContent = pageNum;
+            button.addEventListener('click', () => {
+                currentPage = pageNum;
+                renderTable();
+            });
+            pageNumbersEl.appendChild(button);
+        }
+        
+        // 添加省略号
+        function addEllipsis() {
+            const ellipsis = document.createElement('span');
+            ellipsis.className = 'px-2 text-gray-500';
+            ellipsis.textContent = '...';
+            pageNumbersEl.appendChild(ellipsis);
+        }
+        
+        // 处理页码大小变更
+        function handlePageSizeChange() {
+            pageSize = parseInt(pageSizeSelect.value);
+            currentPage = 1; // 重置到第一页
+            renderTable();
+        }
+        
+        // 上一页
+        function goToPrevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+            }
+        }
+        
+        // 下一页
+        function goToNextPage() {
+            const totalPages = Math.ceil(materials.length / pageSize);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTable();
+            }
+        }
+        
+        // 处理搜索
+        function handleSearch(e) {
+            searchTerm = e.target.value;
+            currentPage = 1; // 重置到第一页
+            renderTable();
+        }
+        
+        // 查看材料明细
+        function viewMaterial(materialName) {
+            // 查找材料信息
+            const material = materials.find(m => m.name === materialName);
+            if (!material) return;
+            
+            // 查找该材料的所有记录
+            const materialRecords = records.filter(r => r.name === materialName)
+                .sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            // 填充明细信息
+            detailModalTitle.textContent = `${material.name} 明细`;
+            document.getElementById('detail-name').textContent = material.name;
+            document.getElementById('detail-type').textContent = material.type;
+            document.getElementById('detail-unit').textContent = material.unit;
+            
+            // 库存预警判断
+            const isStockLow = material.currentStock < material.safeStock;
+            document.getElementById('detail-stock').innerHTML = `
+                ${material.currentStock} ${material.unit} 
+                ${isStockLow ? '<span class="alert-text ml-1"><i class="fa fa-exclamation-circle"></i> 低于安全库存</span>' : ''}
+            `;
+            
+            document.getElementById('detail-total-in').textContent = `${material.totalIn} ${material.unit}`;
+            document.getElementById('detail-total-out').textContent = `${material.totalOut} ${material.unit}`;
+            document.getElementById('detail-safe-stock').textContent = `${material.safeStock} ${material.unit}`;
+            document.getElementById('detail-last-date').textContent = `${formatDate(material.latestDate)} (${material.latestOperator})`;
+            
+            // 填充明细记录
+            if (materialRecords.length === 0) {
+                detailRecordsBody.innerHTML = `
+                    <tr class="text-center">
+                        <td colspan="9" class="px-4 py-6 text-gray-500">暂无操作记录</td>
+                    </tr>
+                `;
+            } else {
+                detailRecordsBody.innerHTML = materialRecords.map((record, index) => `
+                    <tr class="hover:bg-gray-50 transition-custom">
+                        <td class="px-4 py-3 whitespace-nowrap">${index + 1}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <span class="px-2 py-1 rounded-full text-xs ${record.operation === '入库' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}">
+                                ${record.operation}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">${record.quantity} ${material.unit}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">${record.loss} ${material.unit}</td>
+                        <td class="px-4 py-3 whitespace-nowrap font-medium">${record.netQuantity} ${material.unit}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">${record.order}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">${record.operator}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">${formatDate(record.date)}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="flex space-x-2">
+                                <button data-action="edit" data-id="${record.id}" class="text-warning hover:text-warning/80 transition-custom" title="编辑">
+                                    <i class="fa fa-edit"></i>
+                                </button>
+                                <button data-action="delete" data-id="${record.id}" class="text-danger hover:text-danger/80 transition-custom" title="删除">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+            
+            showDetailModal();
+        }
+        
+        // 显示材料明细模态框
+        function showDetailModal() {
+            materialDetailModal.classList.remove('opacity-0', 'pointer-events-none');
+            materialDetailModal.querySelector('div').classList.remove('scale-95');
+            materialDetailModal.querySelector('div').classList.add('scale-100');
+        }
+        
+        // 隐藏材料明细模态框
+        function hideDetailModal() {
+            materialDetailModal.classList.add('opacity-0', 'pointer-events-none');
+            materialDetailModal.querySelector('div').classList.remove('scale-100');
+            materialDetailModal.querySelector('div').classList.add('scale-95');
+        }
+        
+        // 编辑记录（需要密码验证）
+        function editRecord(id) {
+            // 验证记录ID是否有效
+            const record = records.find(r => r.id === id);
+            if (!record) {
+                showError('找不到该记录，请刷新页面重试');
+                return;
+            }
+            
+            // 需要密码验证
+            currentEditingId = id;
+            currentDeletingId = null;
+            currentDeletingMaterial = null;
+            
+            // 设置密码框信息
+            passwordModalTitle.textContent = '编辑验证';
+            passwordModalMessage.textContent = '请输入密码以编辑记录';
+            showPasswordModal();
+        }
+        
+        // 请求删除单条记录（需要密码验证）
+        function requestDeleteRecord(id) {
+            // 验证记录ID是否有效
+            const record = records.find(r => r.id === id);
+            if (!record) {
+                showError('找不到该记录，请刷新页面重试');
+                return;
+            }
+            
+            // 需要密码验证
+            currentDeletingId = id;
+            currentEditingId = null;
+            currentDeletingMaterial = null;
+            
+            // 设置密码框信息
+            passwordModalTitle.textContent = '删除验证';
+            passwordModalMessage.textContent = '请输入密码以删除该记录';
+            showPasswordModal();
+        }
+        
+        // 请求删除整个材料（所有相关记录）
+        function requestDeleteMaterial(materialName) {
+            // 验证材料是否存在
+            const material = materials.find(m => m.name === materialName);
+            if (!material) {
+                showError('找不到该材料，请刷新页面重试');
+                return;
+            }
+            
+            // 需要密码验证
+            currentDeletingMaterial = materialName;
+            currentEditingId = null;
+            currentDeletingId = null;
+            
+            // 设置密码框信息
+            passwordModalTitle.textContent = '删除材料验证';
+            passwordModalMessage.textContent = `请输入密码以删除材料"${materialName}"的所有记录`;
+            showPasswordModal();
+        }
+        
+        // 加载记录到表单
+        function loadRecordToForm(record) {
+            document.getElementById('record-id').value = record.id;
+            document.getElementById('material-operator').value = record.operator;
+            document.getElementById('material-name').value = record.name;
+            document.getElementById('material-type').value = record.type;
+            document.getElementById('material-unit').value = record.unit;
+            document.getElementById('material-quantity').value = record.quantity;
+            document.getElementById('material-price').value = record.price;
+            document.getElementById('material-date').value = record.date;
+            document.querySelector(`input[name="operation"][value="${record.operation}"]`).checked = true;
+            document.getElementById('material-supplier').value = record.supplier;
+            document.getElementById('material-note').value = record.note;
+            document.getElementById('material-loss').value = record.loss;
+            
+            // 加载安全库存（使用聚合后的值）
+            const material = materials.find(m => m.name === record.name);
+            if (material) {
+                document.getElementById('material-safe-stock').value = material.safeStock;
+            } else {
+                document.getElementById('material-safe-stock').value = record.safeStock;
+            }
+            
+            document.getElementById('material-order').value = record.order;
+            
+            // 更新订单标签
+            updateOrderLabel();
+            
+            // 滚动到表单
+            document.getElementById('material-form').scrollIntoView({ behavior: 'smooth' });
+            
+            // 生成AI建议
+            generateAISuggestions();
+        }
+        
+        // 验证密码（固定为888888）
+        function verifyPassword() {
+            const password = editPasswordInput.value;
+            
+            if (password === FIXED_PASSWORD) {
+                // 密码正确，根据操作类型执行相应操作
+                if (currentEditingId) {
+                    // 编辑操作
+                    const record = records.find(r => r.id === currentEditingId);
+                    if (record) {
+                        loadRecordToForm(record);
+                    }
+                } else if (currentDeletingId) {
+                    // 删除单条记录操作
+                    showDeleteRecordConfirm(currentDeletingId);
+                } else if (currentDeletingMaterial) {
+                    // 删除整个材料操作
+                    showDeleteMaterialConfirm(currentDeletingMaterial);
+                }
+                
+                hidePasswordModal();
+            } else {
+                showError('密码错误，请重试');
+            }
+        }
+        
+        // 显示删除单条记录确认
+        function showDeleteRecordConfirm(id) {
+            const record = records.find(r => r.id === id);
+            if (!record) return;
+            
+            confirmTitle.textContent = '确认删除记录';
+            confirmMessage.textContent = `您确定要删除"${record.name}"的这条${record.operation}记录吗？此操作不可撤销。删除后将重新计算库存。`;
+            confirmOk.dataset.action = 'delete-record';
+            confirmOk.dataset.id = id;
+            showConfirmModalBase();
+        }
+        
+        // 显示删除整个材料确认
+        function showDeleteMaterialConfirm(materialName) {
+            // 计算该材料有多少条记录
+            const recordCount = records.filter(r => r.name === materialName).length;
+            
+            confirmTitle.textContent = '确认删除材料';
+            confirmMessage.textContent = `您确定要删除材料"${materialName}"的所有${recordCount}条记录吗？此操作不可撤销，删除后该材料将不再显示。`;
+            confirmOk.dataset.action = 'delete-material';
+            confirmOk.dataset.name = materialName;
+            showConfirmModalBase();
+        }
+        
+        // 显示带回调的确认框
+        function showConfirmModal(title, message, confirmCallback) {
+            confirmTitle.textContent = title;
+            confirmMessage.textContent = message;
+            
+            // 保存原有的点击事件
+            const originalOnClick = confirmOk.onclick;
+            
+            // 设置新的点击事件
+            confirmOk.onclick = function() {
+                confirmCallback();
+                hideConfirmModal();
+                // 恢复原有的点击事件
+                confirmOk.onclick = originalOnClick;
+            };
+            
+            showConfirmModalBase();
+        }
+        
+        // 基础显示确认对话框
+        function showConfirmModalBase() {
+            confirmModal.classList.remove('opacity-0', 'pointer-events-none');
+            confirmModal.querySelector('div').classList.remove('scale-95');
+            confirmModal.querySelector('div').classList.add('scale-100');
+        }
+        
+        // 删除单条记录
+        function deleteRecord(id) {
+            // 找到要删除的记录
+            const recordIndex = records.findIndex(r => r.id === id);
+            if (recordIndex === -1) return;
+            
+            // 保存材料名称用于提示
+            const materialName = records[recordIndex].name;
+            
+            // 删除记录
+            records.splice(recordIndex, 1);
+            
+            // 保存数据并刷新界面
+            saveData();
+            hideDetailModal();
+            showToast(autoSaveToast, `"${materialName}"的记录已删除`);
+        }
+        
+        // 删除整个材料（所有相关记录）
+        function deleteMaterial(materialName) {
+            // 保留不是该材料的记录
+            const remainingCount = records.length;
+            records = records.filter(r => r.name !== materialName);
+            const deletedCount = remainingCount - records.length;
+            
+            // 保存数据并刷新界面
+            saveData();
+            hideDetailModal();
+            showToast(autoSaveToast, `材料"${materialName}"的${deletedCount}条记录已全部删除`);
+        }
+        
+        // 重置表单
+        function resetForm() {
+            materialForm.reset();
+            document.getElementById('record-id').value = '';
+            document.getElementById('material-date').valueAsDate = new Date();
+            // 确保默认选中入库
+            document.querySelector('input[name="operation"][value="入库"]').checked = true;
+            updateOrderLabel();
+            
+            // 清空AI建议
+            aiSuggestionsEl.innerHTML = '<div class="text-center py-4 text-gray-500">输入材料信息获取智能建议</div>';
+        }
+        
+        // 处理导入
+        function handleFileImport(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const importedRecords = JSON.parse(event.target.result);
+                    if (Array.isArray(importedRecords)) {
+                        // 为导入的记录添加id和净量字段（如果没有）
+                        importedRecords.forEach(record => {
+                            if (!record.id) {
+                                record.id = 'rec_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+                            }
+                            // 计算净量（已减损耗）
+                            if (record.netQuantity === undefined) {
+                                record.netQuantity = (record.quantity || 0) - (record.loss || 0);
+                            }
+                        });
+                        
+                        records = [...importedRecords, ...records];
+                        saveData();
+                        showToast(autoSaveToast, '数据导入成功');
+                    } else {
+                        showError('导入的数据格式不正确');
+                    }
+                } catch (error) {
+                    showError('导入失败：' + error.message);
+                }
+            };
+            reader.readAsText(file);
+            
+            // 重置文件输入，允许重复选择同一个文件
+            fileImport.value = '';
+        }
+        
+        // 处理导出
+        function handleExport() {
+            if (records.length === 0) {
+                showError('没有数据可导出');
+                return;
+            }
+            
+            const dataStr = JSON.stringify(records, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `材料进出库记录_${formatDateForFile(new Date())}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+        
+        // 处理打印
+        function handlePrint() {
+            const printTableBody = document.getElementById('print-table-body');
+            printTableBody.innerHTML = '';
+            
+            // 填充打印内容
+            materials.forEach((material, index) => {
+                const isStockLow = material.currentStock < material.safeStock;
+                
+                printTableBody.innerHTML += `
+                    <tr>
+                        <td class="border border-gray-300 px-4 py-2">${index + 1}</td>
+                        <td class="border border-gray-300 px-4 py-2">${material.name}</td>
+                        <td class="border border-gray-300 px-4 py-2">${material.type}</td>
+                        <td class="border border-gray-300 px-4 py-2">${material.unit}</td>
+                        <td class="border border-gray-300 px-4 py-2">${material.totalIn}</td>
+                        <td class="border border-gray-300 px-4 py-2">${material.totalOut}</td>
+                        <td class="border border-gray-300 px-4 py-2 ${isStockLow ? 'alert-text' : ''}">${material.currentStock}</td>
+                        <td class="border border-gray-300 px-4 py-2">${material.safeStock} ${material.unit}</td>
+                        <td class="border border-gray-300 px-4 py-2">${formatDate(material.latestDate)}</td>
+                    </tr>
+                `;
+            });
+            
+            // 设置打印日期
+            document.getElementById('print-date').textContent = `打印日期：${formatDate(new Date().toISOString().split('T')[0])}`;
+            
+            // 执行打印
+            window.print();
+        }
+        
+        // 初始化图表
+        function initChart() {
+            const ctx = document.getElementById('material-type-chart').getContext('2d');
+            
+            // 准备图表数据
+            const typeData = {};
+            materials.forEach(material => {
+                if (!typeData[material.type]) {
+                    typeData[material.type] = 0;
+                }
+                typeData[material.type] += material.currentStock;
+            });
+            
+            const labels = Object.keys(typeData);
+            const data = Object.values(typeData);
+            const backgroundColors = [
+                '#165DFF', '#36CFC9', '#52C41A', '#FAAD14', '#FF4D4F', 
+                '#722ED1', '#EB0AA4', '#F5222D', '#FA8C16', '#FAAD14'
+            ];
+            
+            // 创建图表
+            materialTypeChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: backgroundColors.slice(0, labels.length),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 15
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 更新图表
+        function updateChart() {
+            if (!materialTypeChart) return;
+            
+            // 更新图表数据
+            const typeData = {};
+            materials.forEach(material => {
+                if (!typeData[material.type]) {
+                    typeData[material.type] = 0;
+                }
+                typeData[material.type] += material.currentStock;
+            });
+            
+            materialTypeChart.data.labels = Object.keys(typeData);
+            materialTypeChart.data.datasets[0].data = Object.values(typeData);
+            materialTypeChart.update();
+        }
+        
+        // 更新统计数据
+        function updateStats() {
+            // 计算库存总量（已减损耗）
+            const totalStock = materials.reduce((sum, material) => sum + material.currentStock, 0);
+            totalStockEl.textContent = totalStock;
+            
+            // 计算本月入库和出库量（使用净量，已减损耗）
+            const today = new Date();
+            const currentMonth = today.getMonth();
+            const currentYear = today.getFullYear();
+            
+            let monthIn = 0;
+            let monthOut = 0;
+            
+            records.forEach(record => {
+                const recordDate = new Date(record.date);
+                if (recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear) {
+                    if (record.operation === '入库') {
+                        monthIn += record.netQuantity;
+                    } else {
+                        monthOut += record.netQuantity;
+                    }
+                }
+            });
+            
+            monthInEl.textContent = monthIn;
+            monthOutEl.textContent = monthOut;
+            
+            // 计算低库存材料数量
+            const lowStockCount = materials.filter(material => 
+                material.currentStock < material.safeStock
+            ).length;
+            
+            lowStockEl.textContent = lowStockCount;
+            
+            // 更新预警徽章
+            document.getElementById('notification-badge').classList.toggle('hidden', lowStockCount === 0);
+        }
+        
+        // 隐藏确认对话框
+        function hideConfirmModal() {
+            confirmModal.classList.add('opacity-0', 'pointer-events-none');
+            confirmModal.querySelector('div').classList.remove('scale-100');
+            confirmModal.querySelector('div').classList.add('scale-95');
+        }
+        
+        // 显示密码验证对话框
+        function showPasswordModal() {
+            editPasswordInput.value = '';
+            passwordModal.classList.remove('opacity-0', 'pointer-events-none');
+            passwordModal.querySelector('div').classList.remove('scale-95');
+            passwordModal.querySelector('div').classList.add('scale-100');
+            editPasswordInput.focus();
+        }
+        
+        // 隐藏密码验证对话框
+        function hidePasswordModal() {
+            passwordModal.classList.add('opacity-0', 'pointer-events-none');
+            passwordModal.querySelector('div').classList.remove('scale-100');
+            passwordModal.querySelector('div').classList.add('scale-95');
+            currentEditingId = null;
+            currentDeletingId = null;
+            currentDeletingMaterial = null;
+        }
+        
+        // 显示提示信息
+        function showToast(toastElement, message = '') {
+            if (message) {
+                toastElement.querySelector('span').textContent = message;
+            }
+            
+            toastElement.classList.remove('translate-y-20', 'opacity-0');
+            
+            setTimeout(() => {
+                toastElement.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+        
+        // 显示错误信息
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorToast.classList.remove('translate-y-20', 'opacity-0');
+            
+            setTimeout(() => {
+                errorToast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+        
+        // 格式化日期
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+        }
+        
+        // 格式化文件名中的日期
+        function formatDateForFile(date) {
+            return `${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}`;
+        }
+        
+        // 暴露函数到全局，供HTML调用
+        window.viewMaterial = viewMaterial;
+        window.editRecord = editRecord;
+        window.requestDeleteRecord = requestDeleteRecord;
+        window.requestDeleteMaterial = requestDeleteMaterial;
+    </script>
+</body>
+</html>
